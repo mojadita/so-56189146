@@ -1,9 +1,12 @@
+#include <getopt.h>
 #include <stdio.h>
 #include <math.h> /* for sqrt(3) */
 #include <unistd.h>
 
 #define N (10)
 #define NCOLS (120)
+
+int fsum = 0;
 
 double get_a(int n, int m)
 {
@@ -21,22 +24,32 @@ void show(int n, int m)
 	double acc = 0.0;
 	char *sep = "  Sum: ";
 	size_t col = 0;
-	for (i = 0; i < m; i++) {
-		col += printf("%s%.8lg(=%.8lg)",
-			sep,
-			a + i, (acc += a + i));
-		if (col >= NCOLS) {
-			col = 0;
-			sep = "\n  + ";
-		} else {
-			sep = " + ";
+	if (fsum) {
+		for (i = 0; i < m; i++) {
+			col += printf("%s%.8lg(=%.8lg)",
+				sep,
+				a + i, (acc += a + i));
+			if (col >= NCOLS) {
+				col = 0;
+				sep = "\n  + ";
+			} else {
+				sep = " + ";
+			}
 		}
+		printf(" => %.8lg\n", acc);
 	}
-	printf(" => %.8lg\n", acc);
 }
 
-int main()
+int main(int argc, char **argv)
 {
+	int opt;
+
+	while ((opt = getopt(argc, argv, "v")) != EOF) {
+		switch(opt) {
+		case 'v': fsum = 1; break;
+		}
+	}
+
 	char line[1024];
 	while(1) {
 		if (isatty(0)) {

@@ -3,15 +3,36 @@
 #include <unistd.h>
 
 #define N (10)
+#define NCOLS (120)
 
-int f(double n, double a)
+double get_a(int n, int m)
 {
-	return sqrt(a*(a - 1.0) + 2*n - 0.25) - a - 0.5;
+	return (double)n/m - (m - 1)/2.0;
 }
 
-double sum(double a, int m)
+void show(int n, int m)
 {
-	return a * (m + 1) + m * (m + 1) / 2;
+	printf("m=%d:\n", m);
+	double a = get_a(n, m);
+	printf("  a = get_a(n=%d, m=%d) => %.8lg\n", n, m, a);
+	double b = (a + m - 1);
+	printf("  b = (a(=%.8lg) + m(%d) - 1) => %.8lg\n", a, m, b);
+	int i;
+	double acc = 0.0;
+	char *sep = "  Sum: ";
+	size_t col = 0;
+	for (i = 0; i < m; i++) {
+		col += printf("%s%.8lg(=%.8lg)",
+			sep,
+			a + i, (acc += a + i));
+		if (col >= NCOLS) {
+			col = 0;
+			sep = "\n  + ";
+		} else {
+			sep = " + ";
+		}
+	}
+	printf(" => %.8lg\n", acc);
 }
 
 int main()
@@ -19,29 +40,16 @@ int main()
 	char line[1024];
 	while(1) {
 		if (isatty(0)) {
-			fprintf(stderr, "n, a > ");
+			fprintf(stderr, "n> ");
 			fflush(stderr);
 		}
 		if(!fgets(line, sizeof line, stdin)) break;
-		double n, a;
-		sscanf(line, "%lg%lg", &n, &a);
-		int m = f(n, a);
-		printf("m = f(n=%0.8g, a=%0.8g) => %d\n", n, a, m);
-		double s = sum(a, m);
-		printf("s = sum(a=%0.8g, m=%d) => %0.8g\n", a, m, s);
-		double b = n - s;
-		printf("b = n(%0.8g) - s(%0.8g) => %0.8g\n", n, s, b);
-		int i;
-		double acc = 0.0;
-		char *sep = "  ";
-		for (i = 0; i <= m; i++) {
-			printf("%s%lg(=>%lg)",
-				sep,
-				a + i,
-				(acc += a + i));
-			sep = i % N + 1 == N ? "\n+ " : " + ";
+		int n, m;
+		sscanf(line, "%d", &n);
+		for (m = 1;m < 2*n; m += 2) {
+			if (n % m) continue;
+			show(n, m);
 		}
-		printf("%sb(=>%lg) = %lg\n",
-			sep, b, (acc += b));
+		show(n, 2*n);
 	}
 }

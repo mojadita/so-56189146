@@ -1,68 +1,109 @@
+#include <errno.h>
 #include <getopt.h>
-#include <stdio.h>
 #include <math.h> /* for sqrt(3) */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-#define N (10)
-#define NCOLS (120)
+#define N			(10)
+#define NCOLS		(120)
+#define MIN_NCOLS	(32)
+
+#define F(_fmt) __FILE__":%d:%s: " _fmt, __LINE__, __func__
 
 int fsum = 0;
+size_t ncols = NCOLS;
 
-double get_a(int n, int m)
+static void show(int a, int m)
 {
-	return (double)n/m - (m - 1)/2.0;
-}
-
-void show(int n, int m)
-{
-	printf("m=%d:\n", m);
-	double a = get_a(n, m);
-	printf("  a = get_a(n=%d, m=%d) => %.8lg\n", n, m, a);
-	double b = (a + m - 1);
-	printf("  b = (a(=%.8lg) + m(%d) - 1) => %.8lg\n", a, m, b);
-	int i;
-	double acc = 0.0;
-	char *sep = "  Sum: ";
 	size_t col = 0;
+	col += printf("m(=%d):", m);
+	int b = (a + m - 1);
+	col += printf(" a => %d; b => %d;", a, b);
+	int i;
+	int acc = 0;
+	char *sep = "";
 	if (fsum) {
+		printf(" sum: ");
 		for (i = 0; i < m; i++) {
-			col += printf("%s%.8lg(=%.8lg)",
-				sep,
-				a + i, (acc += a + i));
-			if (col >= NCOLS) {
+			acc += a;
+			col += printf("%s%d(=%d)",
+				sep, a, acc);
+			a++;
+			if (col >= ncols) {
 				col = 0;
 				sep = "\n  + ";
 			} else {
 				sep = " + ";
 			}
 		}
-		printf(" => %.8lg\n", acc);
+		col += printf(" => %d", acc);
+	}
+	printf("\n");
+}
+
+static void process(FILE *f)
+{
+	char line[128];
+	int istty = isatty(fileno(f));
+	while(1) {
+		if (istty) {
+			fprintf(stderr, "n> ");
+			fflush(stderr);
+		}
+		if(!fgets(line, sizeof line, f)) break;
+		int n, m;
+		sscanf(line, "%d", &n);
+		show(n, 1);
+		for (m = 2; m < (n << 1); m++) {
+
+			/* we have 2*a = 2*n/m - m + 1, so first 2*n must
+			 * be multiple of m, then 2*a must be even. */
+			if ((n << 1) % m) continue;
+
+			/* 2*n/m - m + 1 must be even */
+			int a;
+			if ((a = (n << 1)/m - m + 1) & 1) continue;
+			a >>= 1;
+
+			show(a, m);
+#if 0
+			if (a == 1)
+				show(0, m+1);
+#endif
+		}
+		show(1-n, n << 1);
 	}
 }
 
 int main(int argc, char **argv)
 {
-	int opt;
-
-	while ((opt = getopt(argc, argv, "v")) != EOF) {
+	int opt, err = 0;
+	while ((opt = getopt(argc, argv, "vc:")) != EOF) {
 		switch(opt) {
 		case 'v': fsum = 1; break;
+		case 'c': ncols = atoi(optarg); break;
 		}
 	}
+	if (ncols < MIN_NCOLS) ncols = MIN_NCOLS;
+	argc -= optind;
+	argv += optind;
 
-	char line[1024];
-	while(1) {
-		if (isatty(0)) {
-			fprintf(stderr, "n> ");
-			fflush(stderr);
+	int i;
+	if (argc) for(i = 0; i < argc; i++) {
+		FILE *f = fopen(argv[i], "rt");
+		if (!f) {
+			fprintf(stderr,
+				F("fopen: %s: %s (errno=%d)\n"),
+				argv[i], strerror(errno), errno);
+			err++;
+			continue;
 		}
-		if(!fgets(line, sizeof line, stdin)) break;
-		int n, m;
-		sscanf(line, "%d", &n);
-		for (m = 1;m < 2*n; m += 2) {
-			if (n % m) continue;
-			show(n, m);
-		}
-		show(n, 2*n);
+		process(f);
+		fclose(f);
+	} else {
+		process(stdin);
 	}
+	return err;
 }

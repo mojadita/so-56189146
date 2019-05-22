@@ -9,6 +9,7 @@
 #define N			(10)
 #define NCOLS		(120)
 #define MIN_NCOLS	(32)
+#define PROMPT		"* "
 
 #define F(_fmt) __FILE__":%d:%s: " _fmt, __LINE__, __func__
 
@@ -52,13 +53,21 @@ static void process(FILE *f)
 		int n, m;
 		do {
 			if (istty) {
-				fprintf(stderr, "n> ");
+				fprintf(stderr, PROMPT);
 				fflush(stderr);
 			}
 			if(!fgets(line, sizeof line, f))
 				goto out;
-			sscanf(line, "%d", &n);
-		} while (n <= 0);
+			if (sscanf(line, "%d", &n) != 1) {
+				fprintf(stderr, "Invalid number: %s", line);
+				continue;
+			}
+			if (n < 1) {
+				fprintf(stderr, "N(%d) must be positive\n", n);
+				continue;
+			}
+			break;
+		} while (1);
 
 		printf("N=%d\n", n);
 		show(n, 1);
